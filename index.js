@@ -14,7 +14,8 @@ server.use(bodyParser.raw({
 }))
 
 server.use((req, res, next) => {
-    if (req.get('Authorization') !== `Bearer ${process.env.AUTH_KEY}`) {
+    if (req.get('Authorization') !== `Bearer ${process.env.AUTH_KEY}` &&
+        !req.originalUrl.startsWith("/_apis/artifactcache/cache/download/")) {
         res.status(401).json({message: 'You are not authorized'});
     } else {
         next();
@@ -90,6 +91,45 @@ server.put('/upload/:runId', (req, res, next) => {
     });
 });
 
-server.listen(PORT, () => {
+server.get('/_apis/artifactcache/cache', (req, res, next) => {
+    const { keys, version } = req.query;
+    const baseURL = `${req.protocol}://${req.get('host')}${req.baseUrl}`;
+    // TODO: what happens if multiple keys are provided?
+    const cacheLocation = `${keys}_${version}`;
+    const archiveLocation = fs.existsSync(cacheLocation) ? `${baseURL}/_apis/artifactcache/cache/download/${cacheLocation}` : "";
+
+    res.status(200).json({archiveLocation});
+});
+
+server.get('/_apis/artifactcache/cache/download/:cacheId', (req, res, next) => {
+    const { cacheId } = req.params;
+    const file = `${__dirname}/${cacheId}`;
+    
+    res.sendFile(file);
+});
+
+server.post('/_apis/artifactcache/caches', (req, res, next) => {
+    const { key, version, cacheSize } = req.body;
+
+    res.status(200).json({cacheId: `${key}_${version}`});
+});
+
+server.patch('/_apis/artifactcache/caches/:cacheId', (req, res, next) => {
+    const { cacheId } = req.params;
+    fs.writeFile(`${cacheId}`, req.body, {encoding: 'utf-8'}, (err) => {
+        if (err) {
+            console.error(err);
+        }
+        res.status(200).json({message: 'success'})
+    });
+    // res.status(200).json({cacheId: `${key}_${version}`});
+});
+
+server.post('/_apis/artifactcache/caches/:cacheId', (req, res, next) => {
+    const { size } = req.body;
+    res.status(200).end();
+});
+
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Listening on port ${PORT}`);
-})
+});
