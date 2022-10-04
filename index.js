@@ -17,7 +17,7 @@ server.use(express.raw({
 }));
 
 server.use((req, res, next) => {
-    if (req.get('Authorization') !== `Bearer ${process.env.AUTH_KEY}` &&
+    if (req.get('Authorization') !== `Bearer ${process.env.AUTH_KEY || "token"}` &&
         !req.originalUrl.startsWith("/_apis/artifactcache/cache/download/")) {
         res.status(401).json({message: 'You are not authorized'});
     } else {
